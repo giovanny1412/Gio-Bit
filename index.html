@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>micro:bit Controller</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0078d4">
+    <style>
+        body { font-family: -apple-system, sans-serif; background: #f0f2f5; padding: 20px; text-align: center; }
+        .card { background: white; padding: 15px; margin: 15px auto; border-radius: 10px; max-width: 400px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        button { background: #0078d4; color: white; border: none; padding: 10px 15px; font-size: 16px; border-radius: 5px; cursor: pointer; margin: 5px; }
+        button:active { background: #005a9e; }
+        .control-group { display: flex; justify-content: space-between; align-items: center; margin: 10px 0; }
+        .slider { width: 60%; }
+        .status { font-weight: bold; color: #d11a2a; margin-bottom: 15px; }
+        .connected { color: #2e7d32; }
+    </style>
+</head>
+<body>
+
+    <h1>micro:bit PWA Controller</h1>
+    <div id="status" class="status">Desconectado</div>
+    <button id="btnConnect" onclick="connectBluetooth()">Conectar micro:bit</button>
+
+    <!-- Pines Digitales -->
+    <div class="card">
+        <h3>Pines Digitales (ON / OFF)</h3>
+        <div class="control-group"><span>Pin P0</span><div><button onclick="sendCmd('D0:1')">ON</button><button onclick="sendCmd('D0:0')">OFF</button></div></div>
+        <div class="control-group"><span>Pin P1</span><div><button onclick="sendCmd('D1:1')">ON</button><button onclick="sendCmd('D1:0')">OFF</button></div></div>
+        <div class="control-group"><span>Pin P2</span><div><button onclick="sendCmd('D2:1')">ON</button><button onclick="sendCmd('D2:0')">OFF</button></div></div>
+        <div class="control-group"><span>Pin P8</span><div><button onclick="sendCmd('D8:1')">ON</button><button onclick="sendCmd('D8:0')">OFF</button></div></div>
+    </div>
+
+    <!-- Pines Analógicos (PWM) -->
+    <div class="card">
+        <h3>Pines Analógicos (PWM: 0-1023)</h3>
+        <div class="control-group"><span>Pin P3</span><input type="range" class="slider" min="0" max="1023" value="0" onchange="sendCmd('A3:' + this.value)"></div>
+        <div class="control-group"><span>Pin P4</span><input type="range" class="slider" min="0" max="1023" value="0" onchange="sendCmd('A4:' + this.value)"></div>
+        <div class="control-group"><span>Pin P10</span><input type="range" class="slider" min="0" max="1023" value="0" onchange="sendCmd('A10:' + this.value)"></div>
+        <div class="control-group"><span>Pin P12</span><input type="range" class="slider" min="0" max="1023" value="0" onchange="sendCmd('A12:' + this.value)"></div>
+    </div>
+
+    <script>
+        // Registrar Service Worker para PWA
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js');
+        }
+
+        // UUIDs estándar del servicio UART de Nordic (usado por micro:bit)
+        const UART_SERVICE_UUID = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
+        const TX_CHAR_UUID = '6e400003-b5a3-f393-e0a9-e50e24dcca9e'; // Del movil a la microbit
+
+        let txCharacteristic = null;
+        let bluetoothDevice = null;
+
+        async function connectBluetooth() {
+            try {
+                const statusDiv = document.getElementById('status');
+                statusDiv.innerText = "Buscando...";
+                
+                bluetoothDevice = await navigator.bluetooth.requestDevice({
+                    filters: [{ namePrefix: 'BBC micro:bit' }],
+                    optionalServices: [UART_SERVICE_UUID]
+                });
+
+                const server = await bluetoothDevice.gatt.connect();
+                const service = await server.getPrimaryService(UART_SERVICE_UUID);
+                txCharacteristic = await service.getCharacteristic(TX_CHAR_UUID);
+
+                statusDiv.innerText = "Conectado";
+                statusDiv.className = "status connected";
+            } catch (error) {
+                console.log(error);
+                document.getElementById('status').innerText = "Error de conexión";
+            }
+        }
+
+        async function sendCmd(command) {
+            if (!txCharacteristic) return;
+            // Añadimos un salto de línea para que la micro:bit sepa dónde termina el comando
+            const encoder = new TextEncoder();
+            const data = encoder.encode(command + '\n');
+            try {
+                await txCharacteristic.writeValue(data);
+                console.log("Enviado:", command);
+            } catch (error) {
+                console.error("Error enviando datos:", error);
+            }
+        }
+    </script>
+</body>
+</html>
