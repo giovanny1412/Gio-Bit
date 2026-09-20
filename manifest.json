@@ -1,0 +1,17 @@
+{
+  "short_name": "BitControl",
+  "name": "micro:bit PWA Controller",
+  "icons": [
+    {
+      "src": "icon.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "./index.html",
+  "background_color": "#f0f2f5",
+  "theme_color": "#0078d4",
+  "display": "standalone",
+  "orientation": "portrait"
+}
